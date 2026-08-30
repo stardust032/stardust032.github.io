@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <title>机房设备图谱</title>
+  <style>
+    :root {
+      --bg: #0b1017;
+      --panel: #111a25;
+      --panel-2: #162231;
+      --line: #2a3b4e;
+      --text: #e8edf2;
+      --muted: #8b9baa;
+      --cyan: #68d8e8;
+      --yellow: #f6c453;
+      --green: #72d7a1;
+      --red: #f06b73;
+      --blue: #78aaf4;
+      --shadow: 0 22px 55px rgba(0, 0, 0, .35);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; background: radial-gradient(circle at 50% -12%, #203244 0, var(--bg) 38%); color: var(--text); font-family: "Segoe UI", "PingFang SC", Arial, sans-serif; }
+    button { font: inherit; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 252px minmax(520px, 1fr) 340px; grid-template-rows: 70px 1fr; }
+    .topbar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--line); background: rgba(11,16,23,.82); backdrop-filter: blur(14px); }
+    .brand { display: flex; gap: 13px; align-items: center; }
+    .brand-mark { width: 35px; height: 35px; border: 1px solid var(--cyan); display: grid; place-items: center; color: var(--cyan); font-weight: 700; letter-spacing: -2px; transform: skewY(-12deg); }
+    .brand h1 { margin: 0; font-size: 16px; letter-spacing: .08em; font-weight: 500; }
+    .brand p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+    .top-meta { display: flex; align-items: center; gap: 18px; color: var(--muted); font-size: 12px; }
+    .live { display: flex; align-items: center; gap: 7px; color: var(--green); }
+    .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 12px var(--green); }
+    .sidebar, .inspector { background: rgba(17,26,37,.78); }
+    .sidebar { border-right: 1px solid var(--line); padding: 25px 18px; }
+    .section-label { margin: 0 0 11px 10px; color: var(--muted); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; }
+    .rack-list { display: grid; gap: 8px; }
+    .rack-btn { border: 1px solid transparent; background: transparent; color: var(--text); border-radius: 4px; padding: 11px 12px; display: flex; align-items: center; justify-content: space-between; text-align: left; cursor: pointer; }
+    .rack-btn:hover { border-color: #355066; background: #1a2937; }
+    .rack-btn.active { background: linear-gradient(90deg, #173442, #142431); border-color: #3b7180; }
+    .rack-name { display: flex; gap: 10px; align-items: center; font-size: 13px; }
+    .rack-id { color: var(--cyan); font-family: ui-monospace, monospace; font-size: 11px; }
+    .rack-count { color: var(--muted); font-size: 11px; }
+    .legend { margin-top: 37px; border-top: 1px solid var(--line); padding-top: 18px; }
+    .legend-row { display: flex; gap: 9px; align-items: center; color: var(--muted); font-size: 11px; margin: 10px 0; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+    .dot-power { background: var(--yellow); }
+    .dot-network { background: var(--blue); }
+    .dot-fiber { background: var(--cyan); }
+    .dot-control { background: var(--green); }
+    .workspace { position: relative; overflow: visible; padding: 27px 30px 23px; }
+    .workspace-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; }
+    .eyebrow { color: var(--cyan); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; }
+    .workspace h2 { margin: 6px 0 0; font-size: 22px; font-weight: 500; letter-spacing: .02em; }
+    .view-toggle { display: flex; gap: 5px; }
+    .view-toggle button { border: 1px solid var(--line); background: #101a25; color: var(--muted); padding: 7px 10px; border-radius: 3px; font-size: 11px; cursor: pointer; }
+    .view-toggle button.active { color: var(--text); border-color: #477685; background: #173341; }
+    .view-help { position: absolute; right: 18px; top: 16px; z-index: 3; color: var(--muted); font-size: 10px; pointer-events: none; }
+    .scene-wrap { height: calc(100vh - 175px); min-height: 500px; position: relative; overflow: hidden; border: 1px solid #26394b; background: linear-gradient(120deg, rgba(19,34,48,.85), rgba(9,15,23,.9)); box-shadow: var(--shadow); }
+    .scene-wrap::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(104,216,232,.06), transparent 18%, transparent 80%, rgba(246,196,83,.04)); }
+    .scene-note { position: absolute; left: 19px; top: 16px; z-index: 3; font-size: 10px; color: var(--muted); letter-spacing: .08em; }
+    .scene-note span { color: var(--cyan); }
+    .three-host { position: absolute; inset: 0; touch-action: none; cursor: grab; }
+    .three-host:active { cursor: grabbing; }
+    .three-host canvas { width: 100%; height: 100%; display: block; }
+    .three-fallback { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; }
+    .rack-scene { position: absolute; left: 50%; top: 51%; width: min(430px, 66%); height: 82%; transform: translate(-50%, -50%) rotateY(-12deg) rotateX(3deg); transform-style: preserve-3d; transition: transform .5s ease; }
+    .rack-scene[data-angle="front"] { transform: translate(-50%, -50%) rotateY(0deg) rotateX(2deg); }
+    .rack-scene[data-angle="side"] { transform: translate(-50%, -50%) rotateY(-32deg) rotateX(3deg); }
+    .rack-frame { position: absolute; inset: 0; border: 10px solid #202f3b; border-top-width: 14px; border-bottom-width: 14px; background: linear-gradient(90deg, #101820, #202f3a 48%, #101820); box-shadow: 14px 17px 0 rgba(0,0,0,.36), inset 0 0 34px rgba(0,0,0,.65); }
+    .rack-frame::before, .rack-frame::after { content: ""; position: absolute; top: 0; bottom: 0; width: 13px; background: repeating-linear-gradient(0deg, #0b1117 0 8px, #73808c 8px 10px, #0b1117 10px 18px); opacity: .6; }
+    .rack-frame::before { left: -2px; } .rack-frame::after { right: -2px; }
+    .rack-header { position: absolute; top: -40px; left: 5%; right: 5%; height: 24px; display: flex; justify-content: space-between; align-items: center; color: #9fb1be; font: 10px ui-monospace, monospace; }
+    .rack-header strong { color: var(--cyan); font-weight: 500; }
+    .u-grid { position: absolute; inset: 24px 26px; display: grid; grid-template-rows: repeat(34, 1fr); gap: 5px; }
+    .device { position: relative; border: 1px solid #415665; border-left-width: 5px; border-radius: 2px; cursor: pointer; transition: transform .16s ease, filter .16s ease, border-color .16s ease; box-shadow: 0 6px 9px rgba(0,0,0,.25); overflow: hidden; }
+    .device::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 1px, transparent 1px 7px); pointer-events: none; }
+    .device:hover, .device.selected { transform: translateX(8px) translateZ(17px); filter: brightness(1.25); border-color: var(--cyan); z-index: 2; }
+    .device-label { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font: 10px ui-monospace, monospace; letter-spacing: .05em; color: #dbe9ef; white-space: nowrap; }
+    .device-sub { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #9bb1bd; font-size: 9px; }
+    .pdu { background: linear-gradient(#4d5258, #292e34); border-left-color: var(--yellow); }
+    .rectifier { background: linear-gradient(#65747e, #303d45); border-left-color: var(--green); }
+    .switch { background: linear-gradient(#3b4e5f, #1e2933); border-left-color: var(--blue); }
+    .fiber { background: linear-gradient(#3c6a73, #203c45); border-left-color: var(--cyan); }
+    .controller { background: linear-gradient(#456a58, #233b31); border-left-color: var(--green); }
+    .ups { background: linear-gradient(#5b5660, #302d36); border-left-color: var(--red); }
+    .blank { background: #151e27; border-color: #2b3a47; cursor: default; box-shadow: none; }
+    .blank:hover { transform: none; filter: none; border-color: #2b3a47; }
+    .port-strip { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: flex; gap: 4px; }
+    .port-strip b { width: 7px; height: 5px; background: #14202a; border: 1px solid #91a4af; }
+    .status-lights { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: flex; gap: 5px; }
+    .status-lights i { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 9px var(--green); }
+    .status-lights i:nth-child(2) { background: var(--yellow); box-shadow: 0 0 9px var(--yellow); }
+    .fiber-lines { position: absolute; top: 0; bottom: 0; right: 9px; width: 45px; background: repeating-linear-gradient(82deg, transparent 0 4px, rgba(241,179,61,.78) 4px 5px, transparent 5px 9px); opacity: .85; }
+    .scene-footer { position: absolute; bottom: 14px; left: 18px; right: 18px; display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; z-index: 3; }
+    .scene-footer strong { color: var(--text); font-weight: 500; }
+    .inspector { border-left: 1px solid var(--line); padding: 25px 22px; overflow: auto; }
+    .inspector h3 { margin: 0; font-size: 17px; font-weight: 500; }
+    .inspector-lead { color: var(--muted); font-size: 11px; line-height: 1.65; margin: 9px 0 21px; }
+    .comparison { margin: 18px 0; border: 1px solid #2c4657; background: #101e29; }
+    .comparison-head { display: flex; justify-content: space-between; align-items: center; padding: 9px 11px; border-bottom: 1px solid #294151; color: var(--cyan); font: 10px ui-monospace, monospace; letter-spacing: .05em; }
+    .comparison-head span { color: var(--muted); letter-spacing: 0; }
+    .compare-grid { display: grid; grid-template-columns: minmax(0, 1.26fr) minmax(0, .74fr); min-height: 143px; }
+    .photo-card { position: relative; min-width: 0; border: 0; border-right: 1px solid #294151; padding: 0; background: #0a1118; cursor: zoom-in; overflow: hidden; }
+    .photo-card img { display: block; width: 100%; height: 143px; object-fit: cover; object-position: center 35%; opacity: .92; transition: transform .2s ease, opacity .2s ease; }
+    .photo-card:hover img { transform: scale(1.045); opacity: 1; }
+    .photo-annotations { position: absolute; inset: 0; pointer-events: none; }
+    .photo-marker { position: absolute; left: var(--x); top: var(--y); transform: translate(-50%, -50%); display: flex; align-items: center; gap: 5px; }
+    .photo-marker i { width: 20px; height: 20px; display: grid; place-items: center; border: 1px solid #fff; border-radius: 50%; background: #e5b847; color: #101820; box-shadow: 0 2px 8px rgba(0,0,0,.7); font: 700 10px ui-monospace, monospace; font-style: normal; }
+    .photo-marker span { display: none; }
+    .photo-badge { position: absolute; left: 8px; top: 8px; padding: 3px 5px; background: rgba(8,16,23,.83); border: 1px solid rgba(163,219,232,.55); color: #d8eef4; font: 9px ui-monospace, monospace; }
+    .photo-hint { position: absolute; left: 8px; right: 8px; bottom: 7px; color: #e2eff2; font-size: 10px; line-height: 1.3; text-align: left; text-shadow: 0 1px 3px #000; }
+    .model-card { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px 7px; background: linear-gradient(145deg, #182b38, #0c161e); }
+    .model-unit { position: relative; width: 78px; height: 45px; border: 1px solid rgba(206,238,244,.68); background: #5f8fda; box-shadow: 8px 8px 0 rgba(5,11,16,.85), 0 8px 13px rgba(0,0,0,.34); transform: perspective(160px) rotateX(12deg) rotateY(-18deg); }
+    .model-unit::before { content: ""; position: absolute; inset: 9px 7px; background: repeating-linear-gradient(90deg, rgba(5,13,20,.75) 0 5px, transparent 5px 10px); border-top: 1px solid rgba(255,255,255,.35); border-bottom: 1px solid rgba(0,0,0,.38); }
+    .model-unit::after { content: attr(data-model); position: absolute; left: 7px; bottom: 3px; color: #eefcff; font: 8px ui-monospace, monospace; text-shadow: 0 1px 1px #000; }
+    .model-unit[data-kind="pdu"], .model-unit[data-kind="ups"] { background: #c49539; }
+    .model-unit[data-kind="rectifier"], .model-unit[data-kind="controller"] { background: #4ebd93; }
+    .model-unit[data-kind="fiber"] { background: #52cbd2; }
+    .model-unit[data-kind="blank"] { background: #52616a; }
+    .model-card strong { max-width: 100%; color: #c9dce3; font: 9px ui-monospace, monospace; font-weight: 400; text-align: center; line-height: 1.35; }
+    .comparison-note { margin: 0; padding: 8px 10px; border-top: 1px solid #294151; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .comparison-note b { color: #c7dce4; font-weight: 500; }
+    .annotation-key { margin: 0; padding: 8px 10px 9px; border-top: 1px solid #294151; display: flex; flex-wrap: wrap; gap: 6px 11px; list-style: none; }
+    .annotation-key li { display: flex; align-items: center; gap: 5px; min-width: 0; color: #b8c9d1; font-size: 9px; line-height: 1.35; }
+    .annotation-key b { flex: 0 0 auto; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%; background: #e5b847; color: #101820; font: 700 9px ui-monospace, monospace; }
+    .photo-dialog { width: min(900px, calc(100vw - 28px)); max-height: calc(100vh - 28px); border: 1px solid #406376; padding: 0; background: #0d161e; color: var(--text); box-shadow: 0 18px 70px rgba(0,0,0,.7); }
+    .photo-dialog::backdrop { background: rgba(0,0,0,.78); }
+    .photo-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 13px; border-bottom: 1px solid #294151; color: #c8dde4; font-size: 12px; }
+    .photo-dialog-close { width: 28px; height: 28px; border: 1px solid #406376; background: #142431; color: #d9f3f7; cursor: pointer; font-size: 18px; line-height: 1; }
+    .dialog-photo-stage { position: relative; display: grid; width: fit-content; max-width: 100%; margin: 0 auto; }
+    .dialog-photo-stage img, .dialog-photo-stage .photo-annotations { grid-area: 1 / 1; }
+    .dialog-photo-stage img { display: block; max-width: 100%; max-height: calc(100vh - 115px); object-fit: contain; }
+    .dialog-photo-stage .photo-marker i { width: 26px; height: 26px; font-size: 11px; }
+    .dialog-photo-stage .photo-marker span { display: block; max-width: 150px; padding: 4px 6px; border: 1px solid rgba(255,255,255,.5); background: rgba(8,16,23,.88); color: #f2f7f8; font-size: 11px; line-height: 1.25; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.65); }
+    .meta-list { display: grid; gap: 0; margin: 0; }
+    .meta-row { display: grid; grid-template-columns: 94px 1fr; gap: 12px; padding: 9px 0; border-bottom: 1px solid #243442; font-size: 11px; }
+    .meta-row dt { color: var(--muted); } .meta-row dd { margin: 0; color: var(--text); }
+    .confidence { display: inline-flex; align-items: center; gap: 7px; color: var(--yellow); }
+    .confidence i { width: 40px; height: 4px; background: linear-gradient(90deg, var(--yellow) 0 70%, #34404a 70%); }
+    .tip { margin-top: 22px; padding: 13px; background: #162431; border-left: 2px solid var(--cyan); color: #bbccd5; font-size: 11px; line-height: 1.6; }
+    .tip strong { display: block; margin-bottom: 4px; color: var(--cyan); font-weight: 500; }
+    .catalog { margin-top: 25px; }
+    .catalog-item { width: 100%; border: 0; border-top: 1px solid #243442; background: transparent; color: var(--text); padding: 10px 0; display: grid; grid-template-columns: 12px 1fr auto; gap: 9px; align-items: center; text-align: left; cursor: pointer; }
+    .catalog-item:hover { background: rgba(104,216,232,.05); }
+    .catalog-item .swatch { width: 8px; height: 20px; border-radius: 1px; }
+    .catalog-item .label { font-size: 11px; } .catalog-item .qty { color: var(--muted); font: 10px ui-monospace, monospace; }
+    .data-source { margin-top: 24px; padding: 13px; border: 1px solid #2c4657; background: #132330; }
+    .data-source strong { display: block; color: var(--cyan); font-size: 11px; font-weight: 500; }
+    .data-source p { margin: 7px 0 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
+    .data-source span { color: var(--yellow); }
+    .flows { margin-top: 22px; border: 1px solid #26394b; background: rgba(13,22,31,.8); box-shadow: var(--shadow); }
+    .flows-head { padding: 18px 18px 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+    .flows-head h3 { margin: 5px 0 0; font-size: 17px; font-weight: 500; }
+    .flow-tabs { display: flex; gap: 5px; flex-wrap: wrap; }
+    .flow-tab { border: 1px solid var(--line); background: #101a25; color: var(--muted); padding: 7px 10px; border-radius: 3px; font-size: 11px; cursor: pointer; }
+    .flow-tab.active { border-color: #477685; background: #173341; color: var(--text); }
+    .flow-caption { margin: 8px 18px 0; color: var(--muted); font-size: 11px; }
+    .flow-canvas { padding: 24px 18px 19px; overflow-x: auto; }
+    .flow-track { min-width: 610px; display: flex; align-items: center; justify-content: center; gap: 0; }
+    .flow-node { width: 132px; min-height: 76px; border: 1px solid #3c5364; background: linear-gradient(145deg, #1a2a37, #111b25); padding: 11px 10px; position: relative; cursor: pointer; text-align: left; color: var(--text); transition: transform .16s ease, border-color .16s ease; }
+    .flow-node:hover, .flow-node.selected { border-color: var(--cyan); box-shadow: 0 0 0 1px rgba(104,216,232,.25), 0 8px 22px rgba(0,0,0,.24); transform: translateY(-3px); }
+    .flow-node::before { content: ""; position: absolute; left: 10px; top: 10px; width: 5px; height: 30px; background: var(--node-color, var(--cyan)); }
+    .flow-node strong { display: block; margin-left: 12px; font-size: 11px; font-weight: 500; }
+    .flow-node span { display: block; margin: 8px 0 0 12px; color: var(--muted); font-size: 10px; line-height: 1.35; }
+    .flow-arrow { width: 42px; height: 1px; background: #496274; position: relative; flex: 0 0 42px; }
+    .flow-arrow::after { content: ""; position: absolute; right: -1px; top: -4px; border-left: 7px solid #6b899b; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+    .mobile-scene-tools, .mobile-nav { display: none; }
+    @media (max-width: 1100px) { .app { grid-template-columns: 205px minmax(470px, 1fr); } .inspector { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 25px; } .inspector .catalog { grid-column: 1 / -1; } }
+    @media (max-width: 720px) {
+      body { padding-bottom: 68px; }
+      .app { display: block; }
+      .topbar { height: auto; padding: 14px 16px; gap: 12px; align-items: flex-start; }
+      .top-meta { display: none; }
+      .brand h1 { font-size: 15px; }
+      .sidebar { padding: 15px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
+      .rack-list { display: flex; overflow-x: auto; padding-bottom: 3px; scrollbar-width: thin; }
+      .rack-btn { min-width: 120px; flex-direction: column; align-items: flex-start; gap: 6px; }
+      .legend { display: none; }
+      .workspace { padding: 20px 14px; }
+      .workspace-head { align-items: flex-start; gap: 16px; flex-direction: column; }
+      .view-toggle { width: 100%; }
+      .view-toggle button { flex: 1; min-height: 38px; }
+      .scene-wrap { height: min(590px, 78vh); min-height: 430px; }
+      .rack-scene { width: 74%; height: 78%; }
+      .view-help { display: none; }
+      .mobile-scene-tools { position: absolute; left: 12px; right: 12px; top: 42px; z-index: 4; display: flex; gap: 7px; }
+      .mobile-scene-tools button { flex: 1; min-height: 36px; border: 1px solid #355066; background: rgba(16,26,37,.92); color: var(--muted); border-radius: 3px; font-size: 11px; }
+      .mobile-scene-tools button.active { color: var(--text); border-color: var(--cyan); background: #173341; }
+      .scene-footer { font-size: 9px; padding: 0 10px; }
+      .inspector { display: block; padding: 22px 16px; }
+      .compare-grid { min-height: 126px; }
+      .photo-card img { height: 126px; }
+      .model-card { min-height: 126px; }
+      .flows-head { align-items: flex-start; flex-direction: column; }
+      .flow-tabs { width: 100%; }
+      .flow-tab { flex: 1; min-height: 36px; }
+      .flow-canvas { padding-left: 12px; padding-right: 12px; }
+      .mobile-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; padding: 7px 10px calc(7px + env(safe-area-inset-bottom)); border-top: 1px solid #304657; background: rgba(10,17,24,.96); backdrop-filter: blur(12px); }
+      .mobile-nav button { border: 0; background: transparent; color: var(--muted); min-height: 44px; font-size: 11px; }
+      .mobile-nav button strong { display: block; color: var(--cyan); font-size: 15px; line-height: 1; margin-bottom: 4px; }
+      .mobile-nav button.active { color: var(--text); background: #142b37; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark">机<br/>柜</div><div><h1>机房设备图谱</h1><p>PHOTO → EQUIPMENT MAP / v0.1</p></div></div>
+      <div class="top-meta"><span>图像归并：9 张 → 6 类</span><span class="live"><i></i>本地演示模式</span></div>
+    </header>
+    <aside class="sidebar" aria-label="机柜导航">
+      <p class="section-label">Cabinet sets</p>
+      <div class="rack-list" id="rackList">
+        <button class="rack-btn active" data-rack="R01"><span class="rack-name"><span class="rack-id">01</span>综合通信柜</span><span class="rack-count">12U</span></button>
+        <button class="rack-btn" data-rack="R02"><span class="rack-name"><span class="rack-id">02</span>直流电源柜</span><span class="rack-count">10U</span></button>
+        <button class="rack-btn" data-rack="R03"><span class="rack-name"><span class="rack-id">03</span>传输配线柜</span><span class="rack-count">9U</span></button>
+        <button class="rack-btn" data-rack="R04"><span class="rack-name"><span class="rack-id">04</span>动力配电柜</span><span class="rack-count">8U</span></button>
+      </div>
+      <div class="legend">
+        <p class="section-label">Visual legend</p>
+        <div class="legend-row"><i class="legend-dot dot-power"></i>交流 / 直流供电</div>
+        <div class="legend-row"><i class="legend-dot dot-network"></i>交换 / 路由设备</div>
+        <div class="legend-row"><i class="legend-dot dot-fiber"></i>光纤配线与终端</div>
+        <div class="legend-row"><i class="legend-dot dot-control"></i>监控 / 控制模块</div>
+      </div>
+    </aside>
+    <main class="workspace">
+      <div class="workspace-head"><div><div class="eyebrow">Interactive rack view</div><h2 id="rackTitle">R01 / 综合通信柜</h2></div><div class="view-toggle" aria-label="视角切换"><button type="button" class="active" data-angle="front">正面</button><button type="button" data-angle="side">侧视</button><button type="button" id="resetView">复位</button></div></div>
+      <section class="scene-wrap" aria-label="机柜三维示意图">
+        <div class="scene-note">SELECT A MODULE <span>· 点击设备查看识别说明</span></div>
+        <div class="view-help">左键旋转 · 右键/Shift 平移 · 滚轮缩放</div>
+        <div class="three-host" id="threeHost" aria-label="可旋转的机柜三维模型"></div>
+        <div class="three-fallback" id="threeFallback">3D 模型加载失败，请检查网络后刷新页面。</div>
+        <div class="mobile-scene-tools" aria-label="手机端模型操作模式">
+          <button type="button" class="active" data-touch-mode="rotate">旋转视角</button>
+          <button type="button" data-touch-mode="pan">平移模型</button>
+          <button type="button" data-touch-mode="reset">复位</button>
+        </div>
+        <div id="rackScene" style="display:none" data-angle="front"><span id="rackCode">R01</span><div id="deviceGrid"></div></div>
+        <div class="scene-footer"><span>结构为示意模型，线缆按照片中主色归并</span><span><strong id="deviceCount">6</strong> 个已归并模块</span></div>
+      </section>
+      <section class="flows" aria-label="机房系统流程图">
+        <div class="flows-head"><div><div class="eyebrow">System flow map</div><h3>从输入到业务：设备怎样串起来</h3></div><div class="flow-tabs" role="tablist" aria-label="流程类型"><button type="button" class="flow-tab active" data-flow="power">供电链路</button><button type="button" class="flow-tab" data-flow="network">网络 / 光纤</button><button type="button" class="flow-tab" data-flow="monitor">告警监控</button></div></div>
+        <p class="flow-caption" id="flowCaption">看懂红蓝粗线：市电进入配电，再变成通信设备使用的 -48V 直流。</p>
+        <div class="flow-canvas"><div class="flow-track" id="flowTrack"></div><div class="flow-note" id="flowNote"></div></div>
+      </section>
+    </main>
+    <aside class="inspector" aria-live="polite">
+      <div>
+        <div class="eyebrow">Selected module</div><h3 id="inspectTitle">48V 直流电源系统</h3><p class="inspector-lead" id="inspectLead">将交流输入转换为通信设备使用的 -48V 直流，并通过多个整流模块实现冗余。</p>
+        <section class="comparison" aria-label="实物照片与模型对照">
+          <div class="comparison-head">实物图 / 模型图 <span id="compareState">当前选中</span></div>
+          <div class="compare-grid">
+            <button class="photo-card" type="button" id="photoOpen" aria-label="放大查看当前实物照片"><img id="inspectPhoto" src="assets/photos/switch.png" alt="交换机所在机柜的实物照片"><span class="photo-annotations" id="photoAnnotations" aria-hidden="true"></span><span class="photo-badge">实物原图</span><span class="photo-hint" id="photoCaption">照片中的代表性区域</span></button>
+            <div class="model-card" aria-label="对应的三维模型图例"><div class="model-unit" id="modelUnit" data-kind="switch" data-model="GE / FE"></div><strong id="modelCaption">三维模型：横向端口面板</strong></div>
+          </div>
+          <p class="comparison-note" id="comparisonNote"><b>看图线索：</b>横向端口阵列与指示灯。上方 3D 机柜中同色模块代表这一设备类别。</p>
+          <ol class="annotation-key" id="annotationKey" aria-label="照片标注说明"></ol>
+        </section>
+        <dl class="meta-list" id="metaList"></dl>
+        <div class="tip"><strong>识别提示</strong><span id="inspectTip">照片能确认它属于通信电源/整流类；具体品牌、额定电流和模块数量需要补拍铭牌或读取监控界面。</span></div>
+      </div>
+        <div class="catalog"><p class="section-label">Merged catalog</p><div id="catalogList"></div></div>
+        <div class="data-source"><strong>数据源状态</strong><p><span>● 本地样例</span> · 已按照片归并设备类别。接入 NetBox 时，可用设备、机柜、端口和线缆 API 替换这些样例数据。</p></div>
+    </aside>
+  </div>
+  <nav class="mobile-nav" aria-label="手机端快速导航">
+    <button type="button" class="active" data-mobile-target="threeHost"><strong>◇</strong>模型</button>
+    <button type="button" data-mobile-target="flowTrack"><strong>→</strong>流程</button>
+    <button type="button" data-mobile-target="photoOpen"><strong>▣</strong>实物对照</button>
+  </nav>
+  <dialog class="photo-dialog" id="photoDialog"><div class="photo-dialog-head"><span id="dialogTitle">实物照片</span><button class="photo-dialog-close" type="button" id="photoClose" aria-label="关闭照片">&times;</button></div><div class="dialog-photo-stage"><img id="dialogPhoto" src="" alt=""><div class="photo-annotations" id="dialogAnnotations" aria-hidden="true"></div></div></dialog>
+  <script>
+    const rackData = {
+      R01: { title: 'R01 / 综合通信柜', code: 'R01', devices: ['pdu','switch','fiber','controller','ups','blank'] },
+      R02: { title: 'R02 / 直流电源柜', code: 'R02', devices: ['pdu','rectifier','rectifier','pdu','controller','blank'] },
+      R03: { title: 'R03 / 传输配线柜', code: 'R03', devices: ['pdu','switch','switch','fiber','fiber','controller'] },
+      R04: { title: 'R04 / 动力配电柜', code: 'R04', devices: ['pdu','pdu','ups','controller','blank','blank'] }
+    };
+    const modules = {
+      pdu: { label: 'PDU / 配电单元', short: 'AC/DC', color: 'dot-power', type: '供配电', photo: 'assets/photos/pdu.png', photoCaption: '实物样本：动力配电区域的断路器与粗电缆', modelCaption: '三维模型：横向断路器面板', compare: '实物中的成排拨杆和粗红蓝线，在上方 3D 中被归并为黄色配电模块。', lead: '为机柜内设备分配交流或直流支路，面板上的断路器用于分路保护与检修隔离。', rows: [['常见形态','多路小型断路器 + 汇流排'],['照片线索','红蓝粗线、成排黑色拨杆'],['风险关注','回路标识、端子紧固、相线分配'],['识别置信度','中等']], tip: '照片可以确认是配电/断路器区域；不要仅凭线缆颜色判断电压和相序，需核对电气图纸。' },
+      rectifier: { label: 'Rectifier / 整流模块', short: '-48V', color: 'dot-control', type: '通信电源', photo: 'assets/photos/rectifier.png', photoCaption: '实物样本：室外柜内的多层通信电源模块', modelCaption: '三维模型：可插拔整流单元', compare: '实物中成列的金属电源单元与粗直流线，在模型中被抽象为绿色整流模块。', lead: '把交流电转换成通信系统常用的 -48V 直流，多个插拔模块并联以提供容量与冗余。', rows: [['常见形态','插拔式整流模块 + 监控单元'],['照片线索','灰白模块、风扇、绿色状态灯'],['关联对象','蓄电池组、低压配电、负载回路'],['识别置信度','较高']], tip: 'ZTE、Emerson 等外观相近，确切型号需要清晰拍摄前面板铭牌与监控屏。' },
+      switch: { label: 'Ethernet switch / 交换机', short: 'GE / FE', color: 'dot-network', type: '网络设备', photo: 'assets/photos/switch.png', photoCaption: '实物样本：机柜上部的端口设备与状态灯', modelCaption: '三维模型：横向端口面板', compare: '实物中横向端口阵列与状态灯，在上方 3D 中被归并为蓝色网络模块。', lead: '在机房内部汇聚以太网链路，端口指示灯反映链路、速率与收发状态。', rows: [['常见形态','1U 机架式，多口 RJ45 / SFP'],['照片线索','横向端口阵列、密集指示灯'],['关联对象','光纤收发器、路由器、服务器'],['识别置信度','中等']], tip: '照片中可辨认出交换类设备，但端口速率、管理方式和具体厂商无法仅靠远景确认。' },
+      fiber: { label: 'ODF / 光纤配线单元', short: 'FIBER', color: 'dot-fiber', type: '光纤配线', photo: 'assets/photos/fiber.png', photoCaption: '实物样本：黄色跳纤与绿色适配器面板', modelCaption: '三维模型：光纤配线面板', compare: '实物中的黄色跳纤、绿色适配器和余长盘纤，在模型中被归并为青色 ODF 模块。', lead: '对外来和柜内光纤进行熔接、适配器连接与跳纤管理，方便线路调度和维护。', rows: [['常见形态','绿色/黑色配线板 + LC/SC 适配器'],['照片线索','大量黄色单模光纤、盘纤余量'],['风险关注','弯曲半径、标签、端口清洁'],['识别置信度','较高']], tip: '黄色线缆通常是单模光纤，但仍应以线缆标签和测试结果为准，不能把颜色当成规格证明。' },
+      controller: { label: 'Monitoring / 控制模块', short: 'I/O', color: 'dot-control', type: '监控控制', photo: 'assets/photos/controller.png', photoCaption: '实物样本：通信电源柜中的监控面板与端子区域', modelCaption: '三维模型：I/O 采集与告警模块', compare: '实物中显示/按键、端子与细线束用于辅助定位；模型以绿色 I/O 模块表示其告警采集逻辑。', lead: '采集门禁、温湿度、电源告警等干接点或传感器状态，并上传到动环监控系统。', rows: [['常见形态','绿色端子排 + 网口/串口'],['照片线索','成排绿色端子、细线束'],['关联对象','告警主机、门磁、风扇与温度探头'],['识别置信度','中等']], tip: '绿色端子板很可能承担 I/O 接入，但每一组端子对应的信号定义需要查看端子排标识。' },
+      ups: { label: '后备供电单元（待确认）', short: 'BACKUP', color: 'dot-power', type: '后备供电', photo: 'assets/photos/ups.png', photoCaption: '实物样本：供电柜中待进一步确认的电源设备区域', modelCaption: '三维模型：后备供电占位', compare: '模型用红色模块表示后备供电位置；这张照片只能确认供电设备区域，不能仅凭外观断定为 UPS。', lead: '模型中以该位置表示市电异常时可能承担短时供电或切换的电源单元；准确用途需要核对铭牌和接线图。', rows: [['常见形态','大功率机箱 + 风扇/电池接口'],['照片线索','较深机箱、独立风道、粗电缆'],['关联对象','蓄电池、旁路、输出配电'],['识别置信度','待铭牌确认']], tip: '当前照片不足以确认是否为 UPS、容量和旁路状态。检修前必须执行断电、验电并核对一次图。' },
+      blank: { label: '预留 / 空U位', short: 'SPARE', color: 'dot-fiber', type: '结构空间', photo: 'assets/photos/switch.png', photoCaption: '实物样本：机柜内的空闲安装空间', modelCaption: '三维模型：预留安装位', compare: '空 U 位没有对应的独立实物设备；模型中的空档用于表示扩容和散热空间。', lead: '空闲安装位或盖板，用于后续扩容、散热间隔和维护操作空间。', rows: [['作用','保留扩容空间与风道'],['照片线索','黑色盖板、未安装设备'],['建议','补齐盲板，避免冷热风短路'],['识别置信度','较高']], tip: '空U位本身不是设备，但会影响风道和后续上架规划。' }
+    };
+    const photoAnnotations = {
+      pdu: [{ x: 39, y: 38, label: '分路断路器' }, { x: 68, y: 67, label: '粗电力电缆' }],
+      rectifier: [{ x: 43, y: 35, label: '插拔式电源模块' }, { x: 65, y: 54, label: '状态灯 / 监控区' }, { x: 73, y: 76, label: '直流输出线缆' }],
+      switch: [{ x: 48, y: 39, label: '横向网络端口' }, { x: 72, y: 29, label: '链路状态灯' }, { x: 29, y: 62, label: '接入线缆' }],
+      fiber: [{ x: 57, y: 34, label: '绿色光纤适配器' }, { x: 30, y: 56, label: '黄色光纤跳线' }, { x: 68, y: 72, label: '余长盘纤区域' }],
+      controller: [{ x: 45, y: 28, label: '显示 / 操作面板' }, { x: 55, y: 54, label: 'I/O 端子排' }, { x: 73, y: 70, label: '信号线束' }],
+      ups: [{ x: 50, y: 39, label: '电源设备主体（待确认）' }, { x: 65, y: 60, label: '散热 / 风道区域' }, { x: 31, y: 75, label: '粗电力线缆' }],
+      blank: [{ x: 50, y: 50, label: '预留安装空间' }]
+    };
+    function annotationMarkup(kind, withLabels = false) {
+      return (photoAnnotations[kind] || []).map((item, index) =>
+        `<span class="photo-marker" style="--x:${item.x}%;--y:${item.y}%"><i>${index + 1}</i>${withLabels ? `<span>${item.label}</span>` : ''}</span>`
+      ).join('');
+    }
+    const deviceGrid = document.getElementById('deviceGrid');
+    const catalogList = document.getElementById('catalogList');
+    const rackScene = document.getElementById('rackScene');
+    function renderRack(id) {
+      const data = rackData[id];
+      document.getElementById('rackTitle').textContent = data.title;
+      document.getElementById('rackCode').textContent = data.code;
+      const slots = [];
+      for (let i = 0; i < 34; i++) slots.push({ kind: 'blank', label: '' });
+      const positions = [2, 5, 8, 13, 18, 23];
+      data.devices.forEach((kind, idx) => { slots[positions[idx]] = { kind, label: modules[kind].label.split(' / ')[0].toUpperCase() }; });
+      deviceGrid.innerHTML = slots.map((slot, idx) => {
+        const m = modules[slot.kind];
+        const cls = slot.kind === 'blank' ? 'blank' : slot.kind;
+        const content = slot.kind === 'blank' ? '' : `<span class="device-label">${slot.label}</span>${slot.kind === 'switch' ? '<span class="port-strip"><b></b><b></b><b></b><b></b><b></b><b></b></span>' : ''}${slot.kind === 'fiber' ? '<span class="fiber-lines"></span>' : ''}${slot.kind === 'rectifier' || slot.kind === 'controller' ? '<span class="status-lights"><i></i><i></i></span>' : ''}<span class="device-sub">${m.short}</span>`;
+        return `<button type="button" class="device ${cls}" data-kind="${slot.kind}" style="grid-row:${idx+1};" aria-label="${m.label}">${content}</button>`;
+      }).join('');
+      document.getElementById('deviceCount').textContent = data.devices.filter(k => k !== 'blank').length;
+      deviceGrid.querySelectorAll('.device').forEach(btn => btn.addEventListener('click', () => selectModule(btn.dataset.kind, btn)));
+      selectModule(data.devices.find(k => k !== 'blank') || 'blank');
+    }
+    function selectModule(kind, source) {
+      const m = modules[kind];
+      document.getElementById('inspectTitle').textContent = m.label;
+      document.getElementById('inspectLead').textContent = m.lead;
+      document.getElementById('inspectTip').textContent = m.tip;
+      document.getElementById('inspectPhoto').src = m.photo;
+      document.getElementById('inspectPhoto').alt = m.photoCaption;
+      document.getElementById('photoCaption').textContent = m.photoCaption;
+      document.getElementById('photoAnnotations').innerHTML = annotationMarkup(kind);
+      document.getElementById('annotationKey').innerHTML = (photoAnnotations[kind] || []).map((item, index) => `<li><b>${index + 1}</b><span>${item.label}</span></li>`).join('');
+      document.getElementById('modelUnit').dataset.kind = kind;
+      document.getElementById('modelUnit').dataset.model = m.short;
+      document.getElementById('modelCaption').textContent = m.modelCaption;
+      document.getElementById('comparisonNote').innerHTML = '<b>看图线索：</b>' + m.compare;
+      document.getElementById('compareState').textContent = m.short;
+      document.getElementById('metaList').innerHTML = m.rows.map(([k,v]) => `<div class="meta-row"><dt>${k}</dt><dd>${k === '识别置信度' ? '<span class="confidence"><i></i>'+v+'</span>' : v}</dd></div>`).join('');
+      deviceGrid.querySelectorAll('.device').forEach(el => el.classList.toggle('selected', el === source));
+      window.dispatchEvent(new CustomEvent('module-select', { detail: { kind } }));
+    }
+    window.selectModule = selectModule;
+    catalogList.innerHTML = Object.entries(modules).filter(([k]) => k !== 'blank').map(([kind,m]) => `<button class="catalog-item" type="button" data-kind="${kind}"><i class="swatch ${m.color}"></i><span class="label">${m.label}</span><span class="qty">归并类</span></button>`).join('');
+    catalogList.querySelectorAll('.catalog-item').forEach(btn => btn.addEventListener('click', () => selectModule(btn.dataset.kind)));
+    document.querySelectorAll('.rack-btn').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.rack-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderRack(btn.dataset.rack); }));
+    document.querySelectorAll('.view-toggle button').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); rackScene.dataset.angle = btn.dataset.angle; }));
+    const photoDialog = document.getElementById('photoDialog');
+    document.getElementById('photoOpen').addEventListener('click', () => { const image = document.getElementById('inspectPhoto'); const kind = document.getElementById('modelUnit').dataset.kind; document.getElementById('dialogPhoto').src = image.src; document.getElementById('dialogPhoto').alt = image.alt; document.getElementById('dialogTitle').textContent = image.alt + ' · 编号标注'; document.getElementById('dialogAnnotations').innerHTML = annotationMarkup(kind, true); photoDialog.showModal(); });
+    document.getElementById('photoClose').addEventListener('click', () => photoDialog.close());
+    photoDialog.addEventListener('click', event => { if (event.target === photoDialog) photoDialog.close(); });
+    renderRack('R01');
+  </script>
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js';
+    const host = document.getElementById('threeHost');
+    const fallback = document.getElementById('threeFallback');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0e1822);
+    const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+    const target = new THREE.Vector3(0, 0, 0);
+    const orbit = { theta: 0, phi: 1.36, radius: 10, panX: 0, panY: 0 };
+    function updateCamera() {
+      const focus = new THREE.Vector3(target.x + orbit.panX, target.y + orbit.panY, target.z);
+      camera.position.set(
+        focus.x + orbit.radius * Math.sin(orbit.phi) * Math.sin(orbit.theta),
+        focus.y + orbit.radius * Math.cos(orbit.phi),
+        focus.z + orbit.radius * Math.sin(orbit.phi) * Math.cos(orbit.theta)
+      );
+      camera.lookAt(focus);
+    }
+    function resetCamera(angle = 0) { orbit.theta = angle; orbit.phi = 1.36; orbit.radius = 10; orbit.panX = 0; orbit.panY = 0; updateCamera(); }
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    host.appendChild(renderer.domElement);
+    scene.add(new THREE.HemisphereLight(0x9cc7d9, 0x13202a, 2.2));
+    const key = new THREE.DirectionalLight(0x9fe7ff, 3.4); key.position.set(4, 7, 6); key.castShadow = true; scene.add(key);
+    const fill = new THREE.PointLight(0xf6c453, 1.6, 12); fill.position.set(-4, 2, 3); scene.add(fill);
+    const rackGroup = new THREE.Group(); scene.add(rackGroup);
+    const materials = {
+      frame: new THREE.MeshStandardMaterial({ color: 0x243643, metalness: .72, roughness: .34 }),
+      dark: new THREE.MeshStandardMaterial({ color: 0x101a22, metalness: .35, roughness: .5 }),
+      pdu: new THREE.MeshStandardMaterial({ color: 0xc49539, emissive: 0x2c2005, metalness: .5, roughness: .4 }),
+      rectifier: new THREE.MeshStandardMaterial({ color: 0x4ebd93, emissive: 0x0c291f, metalness: .35, roughness: .38 }),
+      switch: new THREE.MeshStandardMaterial({ color: 0x5f8fda, emissive: 0x101c36, metalness: .45, roughness: .36 }),
+      fiber: new THREE.MeshStandardMaterial({ color: 0x52cbd2, emissive: 0x0c2c30, metalness: .35, roughness: .4 }),
+      controller: new THREE.MeshStandardMaterial({ color: 0x6bc99b, emissive: 0x10291e, metalness: .28, roughness: .45 }),
+      ups: new THREE.MeshStandardMaterial({ color: 0xd66d76, emissive: 0x301115, metalness: .35, roughness: .4 })
+    };
+    const labels = { pdu: 'PDU', rectifier: 'RECT', switch: 'SW', fiber: 'ODF', controller: 'I/O', ups: 'UPS' };
+    let currentRack = 'R01'; let meshes = [];
+    function box(size, material, position, parent = rackGroup) { const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material); mesh.position.set(...position); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh; }
+    function buildRack(id) {
+      currentRack = id; meshes.forEach(m => rackGroup.remove(m)); meshes = [];
+      box([4.5, 8.3, .24], materials.dark, [0, 0, -.45]);
+      box([.26, 8.7, .72], materials.frame, [-2.26, 0, 0]); box([.26, 8.7, .72], materials.frame, [2.26, 0, 0]);
+      box([4.8, .25, .72], materials.frame, [0, 4.25, 0]); box([4.8, .25, .72], materials.frame, [0, -4.25, 0]);
+      const devices = rackData[id].devices;
+      const positions = [2, 5, 8, 13, 18, 23];
+      devices.forEach((kind, index) => {
+        if (kind === 'blank') return;
+        const y = 3.65 - positions[index] * .235;
+        const mesh = box([3.9, .42, .68], materials[kind], [0, y, .08]); mesh.userData.kind = kind; meshes.push(mesh);
+        const plate = box([.06, .3, .76], materials[kind], [-2.02, y, .11]); plate.userData.kind = kind; meshes.push(plate);
+        if (kind === 'switch' || kind === 'fiber') for (let p = 0; p < 8; p++) { const port = box([.11, .06, .05], materials.dark, [-1.1 + p * .28, y + .01, .44]); port.userData.kind = kind; meshes.push(port); }
+        if (kind === 'rectifier' || kind === 'controller') { const light = box([.06, .06, .06], materials.pdu, [1.62, y + .05, .44]); light.userData.kind = kind; meshes.push(light); }
+      });
+      document.getElementById('deviceCount').textContent = devices.filter(k => k !== 'blank').length;
+    }
+    const raycaster = new THREE.Raycaster(); const pointer = new THREE.Vector2(); let drag = false; let dragMoved = false; let dragMode = 'rotate'; let lastX = 0; let lastY = 0;
+    function highlight3D(kind) { meshes.forEach(m => { m.material.emissiveIntensity = m.userData.kind === kind ? 1.8 : 1; }); }
+    function select3D(kind) { if (kind && window.selectModule) window.selectModule(kind); }
+    window.addEventListener('module-select', event => highlight3D(event.detail.kind));
+    renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+    renderer.domElement.addEventListener('pointerdown', e => { drag = true; dragMoved = false; dragMode = e.button === 2 || e.shiftKey ? 'pan' : 'rotate'; lastX = e.clientX; lastY = e.clientY; renderer.domElement.setPointerCapture(e.pointerId); });
+    renderer.domElement.addEventListener('pointerup', e => { drag = false; try { renderer.domElement.releasePointerCapture(e.pointerId); } catch {} });
+    renderer.domElement.addEventListener('pointermove', e => {
+      if (!drag) return;
+      const dx = e.clientX - lastX; const dy = e.clientY - lastY; dragMoved ||= Math.abs(dx) + Math.abs(dy) > 2;
+      if (dragMode === 'rotate') { orbit.theta -= dx * .009; orbit.phi = THREE.MathUtils.clamp(orbit.phi + dy * .008, .26, Math.PI - .26); }
+      else { const scale = orbit.radius * .00155; orbit.panX -= dx * scale; orbit.panY += dy * scale; }
+      lastX = e.clientX; lastY = e.clientY; updateCamera();
+    });
+    renderer.domElement.addEventListener('click', e => { if (dragMoved) return; const rect = renderer.domElement.getBoundingClientRect(); pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1; pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1; raycaster.setFromCamera(pointer, camera); const hit = raycaster.intersectObjects(meshes)[0]; if (hit) select3D(hit.object.userData.kind); });
+    renderer.domElement.addEventListener('wheel', e => { orbit.radius = THREE.MathUtils.clamp(orbit.radius + e.deltaY * .009, 5.7, 16); updateCamera(); e.preventDefault(); }, { passive: false });
+    function resize() { const rect = host.getBoundingClientRect(); if (!rect.width || !rect.height) return; renderer.setSize(rect.width, rect.height, false); camera.aspect = rect.width / rect.height; camera.updateProjectionMatrix(); }
+    new ResizeObserver(resize).observe(host);
+    function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
+    try { buildRack('R01'); resetCamera(); resize(); animate(); select3D('pdu'); } catch (error) { fallback.style.display = 'flex'; console.error(error); }
+    document.querySelectorAll('.rack-btn').forEach(btn => btn.addEventListener('click', () => buildRack(btn.dataset.rack)));
+    document.querySelectorAll('.view-toggle button[data-angle]').forEach(btn => btn.addEventListener('click', () => { resetCamera(btn.dataset.angle === 'side' ? -.62 : 0); }));
+    document.getElementById('resetView').addEventListener('click', () => resetCamera());
+    document.querySelectorAll('[data-touch-mode]').forEach(button => button.addEventListener('click', () => {
+      const mode = button.dataset.touchMode;
+      if (mode === 'reset') { resetCamera(); return; }
+      dragMode = mode;
+      document.querySelectorAll('[data-touch-mode]').forEach(item => item.classList.toggle('active', item === button));
+    }));
+    document.querySelectorAll('[data-mobile-target]').forEach(button => button.addEventListener('click', () => {
+      if (button.dataset.mobileTarget === 'photoOpen') { document.getElementById('photoOpen').click(); return; }
+      document.getElementById(button.dataset.mobileTarget)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.querySelectorAll('[data-mobile-target]').forEach(item => item.classList.toggle('active', item === button));
+    }));
+    const flowData = {
+      power: { caption: '看懂红蓝粗线：市电进入配电，再变成通信设备使用的 -48V 直流。', note: '日常巡检顺序：先看输入断路器，再看整流模块状态灯，最后核对负载侧告警。蓄电池通常接在整流输出母线上，市电中断时承担过渡供电。', nodes: [['市电 / 交流输入','站点外部电源',''],['PDU 配电单元','分路保护与隔离','pdu'],['整流模块','AC → -48V DC','rectifier'],['蓄电池组','断电时短时支撑','ups'],['通信设备负载','交换 / 传输 / 控制','switch']] },
+      network: { caption: '看懂黄色细线：外部光纤先进入 ODF，再跳纤到交换 / 传输设备。', note: '光纤配线架负责“接、熔、配、标”，交换机负责“转发”。排障时先检查端口灯和跳纤标签，再做光功率或链路测试。', nodes: [['外部光缆','来自基站 / 上联站点',''],['ODF 配线单元','熔接、适配、跳纤','fiber'],['光模块 / 收发器','光电转换','fiber'],['交换机 / 传输设备','端口转发与汇聚','switch'],['业务网络','数据、语音、专线','']] },
+      monitor: { caption: '看懂绿色细线：传感器和设备告警汇入控制模块，再上送动环平台。', note: '告警链路和业务链路是两套逻辑：设备可能仍在转发业务，但温度、门禁或电源已经产生告警。处理时要看告警时间、来源端子和现场状态。', nodes: [['温湿度 / 门禁','现场传感器与干接点',''],['控制模块','I/O 采集与去抖','controller'],['通信上联','网口 / 串口上送','switch'],['动环监控平台','告警、趋势、报表',''],['值班人员','确认、派单、复归','']] }
+    };
+    function renderFlow(id) { const flow = flowData[id]; document.getElementById('flowCaption').textContent = flow.caption; document.getElementById('flowNote').textContent = flow.note; document.getElementById('flowTrack').innerHTML = flow.nodes.map((n, i) => `<button type="button" class="flow-node" data-kind="${n[2]}" style="--node-color:var(--${n[2] === 'switch' ? 'blue' : n[2] === 'pdu' || n[2] === 'ups' ? 'yellow' : n[2] === 'controller' || n[2] === 'rectifier' ? 'green' : 'cyan'})"><strong>${n[0]}</strong><span>${n[1]}</span></button>${i < flow.nodes.length - 1 ? '<span class="flow-arrow" aria-hidden="true"></span>' : ''}`).join(''); document.querySelectorAll('.flow-node').forEach(node => node.addEventListener('click', () => { select3D(node.dataset.kind); })); }
+    document.querySelectorAll('.flow-tab').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.flow-tab').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderFlow(btn.dataset.flow); }));
+    renderFlow('power');
+  </script>
+</body>
+</html>
