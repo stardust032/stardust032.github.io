@@ -133,7 +133,9 @@
     .gallery-thumb:hover, .gallery-thumb:focus-visible { border-color: var(--cyan); outline: none; }
     .gallery-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: .88; transition: transform .18s ease, opacity .18s ease; }
     .gallery-thumb:hover img, .gallery-thumb:focus-visible img { transform: scale(1.07); opacity: 1; }
-    .gallery-thumb span { position: absolute; right: 3px; bottom: 3px; min-width: 17px; padding: 2px 3px; background: rgba(8,16,23,.85); color: #e7f5f7; font: 9px ui-monospace, monospace; text-align: center; }
+    .gallery-thumb .photo-marker i { width: 17px; height: 17px; font-size: 8px; }
+    .gallery-thumb > span:not(.photo-annotations) { position: absolute; right: 3px; bottom: 3px; min-width: 17px; padding: 2px 3px; background: rgba(8,16,23,.85); color: #e7f5f7; font: 9px ui-monospace, monospace; text-align: center; }
+    .gallery-thumb .photo-marker span { display: none; }
     .photo-dialog { width: min(900px, calc(100vw - 28px)); max-height: calc(100vh - 28px); border: 1px solid #406376; padding: 0; background: #0d161e; color: var(--text); box-shadow: 0 18px 70px rgba(0,0,0,.7); }
     .photo-dialog::backdrop { background: rgba(0,0,0,.78); }
     .photo-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 13px; border-bottom: 1px solid #294151; color: #c8dde4; font-size: 12px; }
@@ -311,6 +313,26 @@
       ups: [{ x: 50, y: 39, label: '电源设备主体（待确认）' }, { x: 65, y: 60, label: '散热 / 风道区域' }, { x: 31, y: 75, label: '粗电力线缆' }],
       blank: [{ x: 50, y: 50, label: '预留安装空间' }]
     };
+    const galleryAnnotations = {
+      1: [{ x: 49, y: 18, label: '插拔式整流模块区域' }, { x: 52, y: 32, label: '直流配电 / 断路器' }, { x: 50, y: 43, label: '监控与接口模块' }, { x: 50, y: 61, label: '大功率电源机箱' }],
+      2: [{ x: 51, y: 18, label: '交流输入与熔断器区' }, { x: 49, y: 43, label: '整流模块与状态灯' }, { x: 50, y: 66, label: '下层分路断路器' }],
+      3: [{ x: 51, y: 13, label: '黄色光纤上引' }, { x: 52, y: 39, label: '带状态灯的网络设备' }, { x: 50, y: 67, label: '绿色端子 / 配线区域' }],
+      4: [{ x: 49, y: 10, label: '上层网络端口设备' }, { x: 50, y: 23, label: '交换 / 传输设备' }, { x: 47, y: 37, label: '配电断路器区' }, { x: 50, y: 64, label: '绿色光纤配线板' }],
+      5: [{ x: 50, y: 24, label: '上层直流配电单元' }, { x: 51, y: 45, label: '整流电源机箱' }, { x: 50, y: 60, label: '下层断路器与汇流排' }, { x: 22, y: 65, label: '左侧线缆束' }],
+      6: [{ x: 50, y: 14, label: '室外机柜与散热风道' }, { x: 50, y: 31, label: '输入配电区' }, { x: 50, y: 45, label: '整流 / 电源模块' }, { x: 50, y: 62, label: '绿色配线与端子板' }, { x: 47, y: 80, label: '底部光纤余长' }],
+      7: [{ x: 50, y: 10, label: '顶部配电断路器' }, { x: 50, y: 24, label: 'ZTE 电源设备' }, { x: 50, y: 35, label: '整流模块风扇' }, { x: 50, y: 52, label: '监控 / 端子模块' }, { x: 50, y: 74, label: '下层分路配电' }],
+      8: [{ x: 50, y: 19, label: '网络设备与指示灯' }, { x: 50, y: 42, label: '绿色 ODF 配线板' }, { x: 64, y: 65, label: '黄色光纤跳线' }, { x: 50, y: 83, label: '下部配线托盘' }],
+      9: [{ x: 50, y: 10, label: '顶部直流配电' }, { x: 50, y: 31, label: '预留 / 空闲安装位' }, { x: 50, y: 49, label: '电源模块层' }, { x: 50, y: 70, label: '底部电源与线缆区' }],
+      10: [{ x: 51, y: 17, label: '上方光纤余长' }, { x: 50, y: 32, label: '绿色光纤配线板' }, { x: 50, y: 53, label: '黑色电源机箱' }, { x: 70, y: 72, label: '侧面线缆束' }],
+      11: [{ x: 50, y: 14, label: '交流输入 / 断路器区' }, { x: 50, y: 35, label: '整流模块与风扇' }, { x: 25, y: 45, label: '红蓝直流电缆' }, { x: 50, y: 68, label: '控制与端子模块' }, { x: 50, y: 83, label: '下层配电单元' }],
+      12: [{ x: 50, y: 24, label: '上层配电面板' }, { x: 52, y: 44, label: '网络设备与状态灯' }, { x: 50, y: 64, label: '绿色端子 / ODF 区' }, { x: 66, y: 73, label: '盘绕光纤' }],
+      13: [{ x: 42, y: 14, label: '输入断路器与熔断器' }, { x: 53, y: 35, label: '整流电源模块' }, { x: 68, y: 40, label: '监控显示 / 告警区' }, { x: 50, y: 61, label: '下层电源模块' }, { x: 50, y: 82, label: '底部配线区' }],
+      14: [{ x: 50, y: 17, label: '交换 / 传输设备' }, { x: 50, y: 35, label: '直流母排与配电' }, { x: 50, y: 57, label: '多层整流模块' }, { x: 30, y: 67, label: '红蓝直流电缆' }, { x: 64, y: 58, label: '状态灯与接口' }],
+      15: [{ x: 18, y: 43, label: '墙侧监控 / 电源面板' }, { x: 50, y: 37, label: '机柜配电与端口设备' }, { x: 75, y: 34, label: 'Emerson 电源机箱' }, { x: 50, y: 53, label: '网络交换设备' }, { x: 50, y: 73, label: '下层配线与电源模块' }]
+    };
+    function galleryAnnotationMarkup(index, withLabels = false) {
+      return (galleryAnnotations[index] || []).map((item, markerIndex) => `<span class="photo-marker" style="--x:${item.x}%;--y:${item.y}%"><i>${markerIndex + 1}</i>${withLabels ? `<span>${item.label}</span>` : ''}</span>`).join('');
+    }
     const photoGalleryFiles = Array.from({ length: 15 }, (_, index) => `assets/photos/gallery/room-${String(index + 1).padStart(2, '0')}.jpg`);
     function annotationMarkup(kind, withLabels = false) {
       return (photoAnnotations[kind] || []).map((item, index) =>
@@ -366,13 +388,14 @@
     document.getElementById('photoOpen').addEventListener('click', () => { const image = document.getElementById('inspectPhoto'); const kind = document.getElementById('modelUnit').dataset.kind; document.getElementById('dialogPhoto').src = image.src; document.getElementById('dialogPhoto').alt = image.alt; document.getElementById('dialogTitle').textContent = image.alt + ' · 编号标注'; document.getElementById('dialogAnnotations').innerHTML = annotationMarkup(kind, true); photoDialog.showModal(); });
     document.getElementById('photoClose').addEventListener('click', () => photoDialog.close());
     photoDialog.addEventListener('click', event => { if (event.target === photoDialog) photoDialog.close(); });
-    document.getElementById('photoGallery').innerHTML = photoGalleryFiles.map((src, index) => `<button class="gallery-thumb" type="button" data-gallery-src="${src}" aria-label="打开第 ${index + 1} 张机房实物图"><img src="${src}" alt="第 ${index + 1} 张机房实物图" loading="lazy"><span>${String(index + 1).padStart(2, '0')}</span></button>`).join('');
+    document.getElementById('photoGallery').innerHTML = photoGalleryFiles.map((src, index) => `<button class="gallery-thumb" type="button" data-gallery-src="${src}" aria-label="打开第 ${index + 1} 张机房实物图"><img src="${src}" alt="第 ${index + 1} 张机房实物图" loading="lazy"><span class="photo-annotations" aria-hidden="true">${galleryAnnotationMarkup(index + 1)}</span><span>${String(index + 1).padStart(2, '0')}</span></button>`).join('');
     document.querySelectorAll('.gallery-thumb').forEach(button => button.addEventListener('click', () => {
       const image = button.querySelector('img');
       document.getElementById('dialogPhoto').src = image.src;
       document.getElementById('dialogPhoto').alt = image.alt;
       document.getElementById('dialogTitle').textContent = image.alt;
-      document.getElementById('dialogAnnotations').innerHTML = '';
+      const galleryIndex = Array.from(document.querySelectorAll('.gallery-thumb')).indexOf(button) + 1;
+      document.getElementById('dialogAnnotations').innerHTML = galleryAnnotationMarkup(galleryIndex, true);
       photoDialog.showModal();
     }));
     renderRack('R01');
